@@ -50,8 +50,13 @@ target-version = ['py38']
 [tool.ruff]
 line-length = 88
 target-version = "py38"
-select = ["E", "F", "W", "I", "N", "UP", "S", "B", "A", "C4", "ICN", "PIE", "PYI", "RSE", "RET", "SIM", "TID", "ARG", "PL", "R", "FLY"]
-ignore = ["S101", "S603", "S607"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "N", "UP", "B", "A", "C4", "ICN", "PIE", "PYI", "RSE", "RET", "SIM", "TID", "ARG", "PL", "R", "FLY"]
+ignore = ["S101", "S105", "S106", "S603", "S607", "PLR2004", "PLW0603", "PLC0415"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["S101", "S105", "S106", "PLR2004", "PLC0415"]
 
 [tool.mypy]
 python_version = "3.8"
