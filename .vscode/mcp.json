@@ -1,0 +1,30 @@
+{
+	"servers": {
+		"slurm_mcp": {
+			"type": "stdio",
+			"command": "uv",
+			"args": [
+				"run",
+				"slurm_mcp"
+			]
+		},
+		"slurm_mcp_release": {
+			"type": "stdio",
+			"command": "uvx",
+			"args": [
+				"--from",
+				"git+https://www.github.com/lebrice/slurm_mcp",
+				"slurm_mcp"
+			]
+		},
+		"calculator": {
+			"type": "stdio",
+			"command": "uv",
+			"args": [
+				"run",
+				"calculator"
+			]
+		}
+	},
+	"inputs": []
+}
