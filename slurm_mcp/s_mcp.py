@@ -238,8 +238,8 @@ def get_job_gpu_compute_stats(
     cluster: str | None,
     job_ids: Sequence[int | str],
 ) -> dict[int, JobComputeUsageStats]:
-    """Retrieve GPU utilization and sm_efficiency metrics for a list of SLURM job IDs on a (remote or local)
-    cluster from prometheus."""
+    """Retrieve GPU utilization and sm_efficiency metrics for a list of SLURM job IDs on a (remote
+    or local) cluster from prometheus."""
     return get_job_gpu_compute_stats_fn(cluster, job_ids)
 
 
@@ -299,7 +299,7 @@ def get_jobs_from_sacct(cluster: str | None, job_ids: Sequence[int | str]) -> li
             f"sacct --json --user=$USER --jobs={','.join(map(str, job_ids))}",
         ]
         if cluster
-        else ["sacct", "--json", f"--user=$USER", f"--jobs={','.join(map(str, job_ids))}"]
+        else ["sacct", "--json", "--user=$USER", f"--jobs={','.join(map(str, job_ids))}"]
     )
     jobs_json = SacctOutput.model_validate_json(
         subprocess.check_output(cmd, text=True, timeout=30)
