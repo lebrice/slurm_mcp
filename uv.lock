@@ -2386,7 +2386,6 @@ wheels = [
 
 [[package]]
 name = "slurm-mcp"
-version = "0.0.1"
 source = { editable = "." }
 dependencies = [
     { name = "fastmcp" },

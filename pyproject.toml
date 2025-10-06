@@ -1,9 +1,10 @@
 [project]
 name = "slurm-mcp"
-version = "0.0.1"
 description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.13"
+dynamic = ["version"]
+authors = [{ name = "Fabrice Normandin", email = "normandf@mila.quebec" }]
 dependencies = [
     "fastmcp>=2.12.3",
     "numpy>=2.3.3",
@@ -24,16 +25,12 @@ line-length = 99
 sarc = { git = "https://www.github.com/mila-iqia/SARC" }
 
 
-[tool.uv.build-backend]
-# module-name = "FOO"
-module-root = ""
-
 [build-system]
-requires = ["uv_build>=0.8.21,<0.9.0"]
-build-backend = "uv_build"
+requires = ["hatchling", "uv-dynamic-versioning"]
+build-backend = "hatchling.build"
+
+[tool.hatch.version]
+source = "uv-dynamic-versioning"
 
 [dependency-groups]
-dev = [
-    "pre-commit>=4.3.0",
-    "pytest>=8.4.2",
-]
+dev = ["pre-commit>=4.3.0", "pytest>=8.4.2"]
