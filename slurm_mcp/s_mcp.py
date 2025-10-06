@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 import enum
 import subprocess
-from typing import List, Sequence
+from typing import Sequence
 import numpy as np
 from fastmcp import FastMCP
 import pydantic
@@ -28,7 +28,7 @@ class State(enum.StrEnum):
 
 
 class SimplifiedSlurmJob(pydantic.BaseModel):
-    """Simplified version of SlurmJob for easier consumption by LLMs."""
+    """Simplified version of SlurmJob with fewer fields for easier consumption by LLMs."""
 
     account: str
     allocation_nodes: int
@@ -36,7 +36,7 @@ class SimplifiedSlurmJob(pydantic.BaseModel):
     # time: Time
     # exit_code: ExitCode
     failed_node: str
-    flags: List[str]
+    flags: list[str]
     group: str
     job_id: int
     name: str
@@ -52,26 +52,36 @@ class SimplifiedSlurmJob(pydantic.BaseModel):
 
 @mcp.tool
 def get_slurm_job_ids(
-    cluster: str,
+    cluster: str | None = None,
     state: State | None = None,
     start: datetime | None = None,
     end: datetime | None = None,
-) -> List[int]:
-    """Gets the list of job IDs on a given cluster with optional filters."""
+) -> list[int]:
+    """Gets the list of job IDs on a given cluster with optional filters.
+
+    Args:
+        cluster: The SLURM cluster to query over SSH. If None, queries the local cluster.
+        state: Optional job state to filter by (e.g., COMPLETED, FAILED, etc.).
+        start: Optional start datetime to filter jobs that started after this time.
+        end: Optional end datetime to filter jobs that ended before this time.
+    """
     return [job.job_id for job in find_jobs_from_sacct(cluster, state, start, end)]
 
 
 # @mcp.tool
 def get_slurm_jobs_info(
-    cluster: str,
+    cluster: str | None = None,
     state: State | None = None,
     start: datetime | None = None,
     end: datetime | None = None,
-) -> List[SimplifiedSlurmJob]:
-    """Retrieve simple information on SLURM jobs on a remote cluster over SSH using sacct with
-    optional query parameters.
+) -> list[SimplifiedSlurmJob]:
+    """Retrieve simple information on SLURM jobs on a cluster using `sacct`.
 
-    Returns a list of Job objects.
+    Args:
+        cluster: Cluster hostname to query over SSH. When `None`, uses the local cluster.
+        state: Optional job state to filter by (e.g., COMPLETED, FAILED, etc.).
+        start: Optional start datetime to filter jobs that started after this time.
+        end: Optional end datetime to filter jobs that ended before this time.
     """
     detailed_jobs = find_jobs_from_sacct(cluster, state, start, end)
     simplified_jobs: list[SimplifiedSlurmJob] = []
@@ -109,7 +119,7 @@ class TotalJobComputeUsageStats(pydantic.BaseModel):
 
 @mcp.tool
 def get_total_compute_usage_stats(
-    cluster: str,
+    cluster: str | None = None,
     state: State | None = None,
     start: datetime | None = None,
     end: datetime | None = None,
@@ -126,27 +136,35 @@ def get_total_compute_usage_stats(
 
 @mcp.tool
 def squeue(
-    cluster: str,
-    start: datetime | None = None,
-    end: datetime | None = None,
+    cluster: str | None = None,
     format: str | None = None,
 ) -> str:
-    """Calls `squeue` on the remote cluster over SSH with optional parameters."""
+    """Calls `squeue --me` on the SLURM cluster (local or over SSH) with an optional `--format`.
+
+    Args:
+        cluster: Cluster hostname to query over SSH. When `None`, uses the local cluster.
+        format: Optional format string for `squeue --format=...`. See `squeue --helpformat` for allowed fields.
+
+    Returns:
+        str: The string output of the `squeue` command.
+    """
     # jobs = get_jobs_from_sacct(cluster, job_ids=job_ids)
     # TODO: Need to make sure there aren't any embedded commands in the format string!
     # We could also use the format spec from slurm. Allowed parts are given in `squeue --helpformat` apparently, and `squeue --helpFormat`
     # shows some more info.
     # This is a pretty naive check, but it's better than nothing for now.
     assert format is None or all(c.isalnum() or c in "_%-," for c in format)
+    format_arg = f"--format='{format}'" if format else ""
     return subprocess.check_output(
-        [
-            "ssh",
-            cluster,
-            "squeue --me "
-            + (f"--format='{format}' " if format else "")
-            + (f"--starttime {start.strftime('%Y-%m-%d-%H:%M:%S')} " if start else "")
-            + (f"--endtime {end.strftime('%Y-%m-%d-%H:%M:%S')} " if end else ""),
-        ],
+        ["ssh", cluster, "squeue --me " + format_arg]
+        if cluster
+        else (
+            [
+                "squeue",
+                "--me",
+            ]
+            + ([format_arg] if format else [])
+        ),
         text=True,
         timeout=30,
     )
@@ -154,26 +172,25 @@ def squeue(
 
 @mcp.tool
 def squeue_detailed_info(
-    cluster: str,
-    start: datetime | None = None,
-    end: datetime | None = None,
+    cluster: str | None = None,
 ) -> str:
-    """Calls `squeue --me --json` on the remote cluster with optional start and end parameters."""
+    """Calls `squeue --me --json` on the SLURM cluster (local or over SSH).
+
+    Args:
+        cluster: Cluster hostname to query over SSH. When `None`, uses the local cluster.
+
+    Returns:
+        str: The string output of the `squeue` command.
+    """
     return subprocess.check_output(
-        [
-            "ssh",
-            cluster,
-            "squeue --me --json "
-            + (f"--starttime {start.strftime('%Y-%m-%d-%H:%M:%S')} " if start else "")
-            + (f"--endtime {end.strftime('%Y-%m-%d-%H:%M:%S')} " if end else ""),
-        ],
+        ["ssh", cluster, "squeue --me --json "] if cluster else ["squeue", "--me", "--json"],
         text=True,
         timeout=30,
     )
 
 
 def get_total_compute_usage_stats_fn(
-    cluster: str,
+    cluster: str | None = None,
     state: State | None = None,
     start: datetime | None = None,
     end: datetime | None = None,
@@ -218,16 +235,16 @@ def sum_compute_usage_stats(
 
 @mcp.tool
 def get_job_gpu_compute_stats(
-    cluster: str,
+    cluster: str | None,
     job_ids: Sequence[int | str],
 ) -> dict[int, JobComputeUsageStats]:
-    """Retrieve GPU utilization and sm_efficiency metrics for a list of SLURM job IDs on a remote
+    """Retrieve GPU utilization and sm_efficiency metrics for a list of SLURM job IDs on a (remote or local)
     cluster from prometheus."""
     return get_job_gpu_compute_stats_fn(cluster, job_ids)
 
 
 def get_job_gpu_compute_stats_fn(
-    cluster: str, job_ids: Sequence[int | str]
+    cluster: str | None, job_ids: Sequence[int | str]
 ) -> dict[int, JobComputeUsageStats]:
     jobs = get_jobs_from_sacct(cluster, job_ids=job_ids)
     job_stats = [get_job_gpu_metrics(job) for job in jobs]
@@ -237,7 +254,7 @@ def get_job_gpu_compute_stats_fn(
 # TODO: Finish this one.
 # @mcp.tool
 def get_job_full_compute_stats(
-    cluster: str,
+    cluster: str | None,
     job_ids: Sequence[int | str],
 ) -> dict[int, JobComputeUsageStats]:
     """Retrieve compute usage statistics for a list of SLURM job IDs on a remote cluster from
@@ -246,7 +263,7 @@ def get_job_full_compute_stats(
 
 
 def get_job_full_compute_stats_fn(
-    cluster: str, job_ids: Sequence[int | str]
+    cluster: str | None, job_ids: Sequence[int | str]
 ) -> dict[int, JobComputeUsageStats]:
     jobs = get_jobs_from_sacct(cluster, job_ids=job_ids)
     job_stats = [get_all_compute_metrics_for_job(job) for job in jobs]
@@ -255,12 +272,14 @@ def get_job_full_compute_stats_fn(
 
 
 @mcp.tool
-def get_job_info_from_sacct(cluster: str, job_ids: Sequence[int | str]) -> List[SlurmJob]:
+def get_job_info_from_sacct(cluster: str | None, job_ids: Sequence[int | str]) -> list[SlurmJob]:
     """Retrieve the information about the given jobs on a SLURM cluster using the `sacct` command.
 
     This does not include the GPU utilization metrics from Prometheus.
 
-    Returns a list of Job objects.
+    Args:
+        cluster: Cluster hostname to query over SSH. When `None`, uses the local cluster.
+        job_ids: List of job IDs to retrieve information for.
     """
     if isinstance(job_ids, str):
         job_ids = [job_ids]
@@ -270,15 +289,18 @@ def get_job_info_from_sacct(cluster: str, job_ids: Sequence[int | str]) -> List[
 
 # TODO: Implement a smart caching with a timeout
 # @functools.lru_cache()
-def get_jobs_from_sacct(cluster: str, job_ids: Sequence[int | str]) -> list[SlurmJob]:
+def get_jobs_from_sacct(cluster: str | None, job_ids: Sequence[int | str]) -> list[SlurmJob]:
     if isinstance(job_ids, str):
         job_ids = [job_ids]
-    cmd = [
-        "ssh",
-        cluster,
-        f"sacct --json --user $USER --jobs {','.join(map(str, job_ids))}",
-    ]
-
+    cmd = (
+        [
+            "ssh",
+            cluster,
+            f"sacct --json --user=$USER --jobs={','.join(map(str, job_ids))}",
+        ]
+        if cluster
+        else ["sacct", "--json", f"--user=$USER", f"--jobs={','.join(map(str, job_ids))}"]
+    )
     jobs_json = SacctOutput.model_validate_json(
         subprocess.check_output(cmd, text=True, timeout=30)
     )
@@ -286,11 +308,10 @@ def get_jobs_from_sacct(cluster: str, job_ids: Sequence[int | str]) -> list[Slur
 
 
 def find_jobs_from_sacct(
-    cluster: str, state: State | None, start: datetime | None, end: datetime | None
+    cluster: str | None, state: State | None, start: datetime | None, end: datetime | None
 ) -> list[SlurmJob]:
     cmd = [
-        "ssh",
-        cluster,
+        *(("ssh", cluster) if cluster else ()),
         "sacct --json --user $USER "
         + (f"--state {state} " if state else "")
         + (f"--starttime {start.strftime('%Y-%m-%d-%H:%M:%S')} " if start else "")

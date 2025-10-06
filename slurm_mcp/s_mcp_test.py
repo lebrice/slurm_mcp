@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 
 
-from slurm_mcp.s_mcp import get_job_compute_stats_fn, get_total_compute_usage_stats_fn
+from slurm_mcp.s_mcp import get_job_gpu_compute_stats_fn, get_total_compute_usage_stats_fn
 
 
 def test_sum_over_period():
@@ -104,7 +104,7 @@ def test_with_job_ids():
         7750882,
         7752116,
     ]
-    print(get_job_compute_stats_fn(cluster="mila", job_ids=job_ids))
+    print(get_job_gpu_compute_stats_fn(cluster="mila", job_ids=job_ids))
 
 
 # if __name__ == "__main__":

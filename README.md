@@ -6,11 +6,22 @@ Simple MCP server to interact with SLURM clusters in natural language.
 
 ## Features
 
-- Allows LLM agents to retrieve information on running jobs from `squeue`, prior jobs from `sacct`, and to get compute usage information based on Prometheus (mila cluster only for now).
+- Allows LLM agents to retrieve information on your running jobs from `squeue`, prior jobs from `sacct`, and to get compute usage information based on Prometheus (mila cluster only for now).
+
 
 ## Demo
 
 <img width="974" height="903" alt="Screenshot from 2025-10-03 15-04-03" src="https://github.com/user-attachments/assets/4f277e02-ab8e-468a-9b4e-a9c18f3256a8" />
+
+
+## Limitations
+
+- This can only fetch your own SLURM job information, not of other users.
+- This can't be used to launch jobs. It is not a good idea to let an LLM submit compute jobs for you.
+- The GPU utilization metrics are only available for the Mila cluster. For other clusters, you will need to provide the prometheus URL to use in order to fetch job compute stats.
+   - Some jobs are missing GPU compute stats because of a bug in the DCGMI / slurm job exporter / nvidia driver / something, that causes the gpu util to be a very very very large number. This tool filters those and displays them as having no usable compute metrics.
+
+
 
 ## Setup
 
@@ -44,11 +55,3 @@ You need to have SSH access to a SLURM compute cluster.
    export PROMETHEUS_URL_MILA="THE_MILA_PROMETHEUS_URL"
    export PROMETHEUS_HEADERS_FILE="my/secrets/prometheus_headers_mila.json"
     ```
-
-
-## Limitations
-
-- This can only fetch your own SLURM job information, not of other users.
-- This can't be used to launch jobs. It is not a good idea to let an LLM submit compute jobs for you.
-- The GPU utilization metrics are only available for the Mila cluster. For other clusters, you will need to provide the prometheus URL to use in order to fetch job compute stats.
-   - Some jobs are missing GPU compute stats because of a bug in the DCGMI / slurm job exporter / nvidia driver / something, that causes the gpu util to be a very very very large number. This tool filters those and displays them as having no usable compute metrics.
