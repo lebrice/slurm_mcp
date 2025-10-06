@@ -17,7 +17,7 @@ from slurm_mcp.slurm_model import SlurmJob
 logger = logging.getLogger(__name__)
 
 PROMETHEUS_URLS: dict[str, str] = {}
-""" Dicts from cluster name to the Prometheus URL. """
+"""Dicts from cluster name to the Prometheus URL."""
 
 
 MTL = zoneinfo.ZoneInfo("America/Montreal")

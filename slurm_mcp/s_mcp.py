@@ -221,8 +221,8 @@ def get_job_gpu_compute_stats(
     cluster: str,
     job_ids: Sequence[int | str],
 ) -> dict[int, JobComputeUsageStats]:
-    """Retrieve GPU utilization and sm_efficiency metrics for a list of SLURM job IDs on a remote cluster from
-    prometheus."""
+    """Retrieve GPU utilization and sm_efficiency metrics for a list of SLURM job IDs on a remote
+    cluster from prometheus."""
     return get_job_gpu_compute_stats_fn(cluster, job_ids)
 
 

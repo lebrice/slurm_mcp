@@ -52,6 +52,3 @@ You need to have SSH access to a SLURM compute cluster.
 - This can't be used to launch jobs. It is not a good idea to let an LLM submit compute jobs for you.
 - The GPU utilization metrics are only available for the Mila cluster. For other clusters, you will need to provide the prometheus URL to use in order to fetch job compute stats.
    - Some jobs are missing GPU compute stats because of a bug in the DCGMI / slurm job exporter / nvidia driver / something, that causes the gpu util to be a very very very large number. This tool filters those and displays them as having no usable compute metrics.
-
-
-
