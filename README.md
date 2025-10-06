@@ -6,7 +6,7 @@ Simple MCP server to interact with SLURM clusters in natural language.
 
 ## Features
 
-- Allows LLM agents to retrieve information on your running jobs from `squeue`, prior jobs from `sacct`, and to get compute usage information based on Prometheus (mila cluster only for now).
+- Allows LLM agents to retrieve information on your running jobs from `squeue`, prior jobs from `sacct`, and to get compute usage information based on Prometheus (once you configure it, see instructions below).
 
 
 ## Demo
@@ -53,5 +53,5 @@ You need to have SSH access to a SLURM compute cluster.
 
    ```bash
    export PROMETHEUS_URL_MILA="THE_MILA_PROMETHEUS_URL"
-   export PROMETHEUS_HEADERS_FILE="my/secrets/prometheus_headers_mila.json"
+   export PROMETHEUS_HEADERS_FILE_MILA="secrets/prometheus_headers_mila.json"
     ```
