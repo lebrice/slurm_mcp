@@ -1,7 +1,25 @@
 from datetime import datetime, timedelta
 
 
-from slurm_mcp.s_mcp import get_job_gpu_compute_stats_fn, get_total_compute_usage_stats_fn
+from slurm_mcp.s_mcp import (
+    get_job_gpu_compute_stats_fn,
+    get_jobs_from_sacct,
+    get_total_compute_usage_stats_fn,
+)
+from slurm_mcp.slurm_model import SlurmJob
+
+
+def test_job_info_from_sacct():
+    jobs = get_jobs_from_sacct(
+        cluster="mila",
+        job_ids=[
+            7650400,
+            7650465,
+            7650563,
+        ],
+    )
+    assert len(jobs) == 3
+    assert all(isinstance(job, SlurmJob) for job in jobs)
 
 
 def test_sum_over_period():
