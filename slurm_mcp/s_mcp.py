@@ -50,6 +50,14 @@ class SimplifiedSlurmJob(pydantic.BaseModel):
     state: State
 
 
+def get_simplified_job(job: SlurmJob) -> SimplifiedSlurmJob:
+    """Drop all non-SimplifiedSlurmJob fields, to make the output easier to consume by LLMs."""
+
+    job_dict = job.model_dump()
+    simplified_job_dict = {field: job_dict[field] for field in SimplifiedSlurmJob.model_fields}
+    return SimplifiedSlurmJob.model_validate(simplified_job_dict)
+
+
 @mcp.tool
 def get_slurm_job_ids(
     cluster: str | None = None,
@@ -84,13 +92,8 @@ def get_slurm_jobs_info(
         end: Optional end datetime to filter jobs that ended before this time.
     """
     detailed_jobs = find_jobs_from_sacct(cluster, state, start, end)
-    simplified_jobs: list[SimplifiedSlurmJob] = []
     # Drop all non-SimplifiedSlurmJob fields
-    for job in detailed_jobs:
-        job_dict = job.model_dump()
-        simplified_job_dict = {field: job_dict[field] for field in SimplifiedSlurmJob.model_fields}
-        simplified_jobs.append(SimplifiedSlurmJob.model_validate(simplified_job_dict))
-    return simplified_jobs
+    return [get_simplified_job(job) for job in detailed_jobs]
 
 
 class JobComputeUsageStats(pydantic.BaseModel):
@@ -272,8 +275,30 @@ def get_job_full_compute_stats_fn(
 
 
 @mcp.tool
-def get_job_info_from_sacct(cluster: str | None, job_ids: Sequence[int | str]) -> list[SlurmJob]:
-    """Retrieve the information about the given jobs on a SLURM cluster using the `sacct` command.
+def get_simple_job_info_from_sacct(
+    cluster: str | None, job_ids: Sequence[int | str]
+) -> list[SimplifiedSlurmJob]:
+    """Retrieve some high-level information about the given jobs on a SLURM cluster using the
+    `sacct` command.
+
+    This does not include the GPU utilization metrics from Prometheus.
+
+    Args:
+        cluster: Cluster hostname to query over SSH. When `None`, uses the local cluster.
+        job_ids: List of job IDs to retrieve information for.
+    """
+    if isinstance(job_ids, str):
+        job_ids = [job_ids]
+    jobs_json = get_jobs_from_sacct(cluster, job_ids=job_ids)
+    return [get_simplified_job(job) for job in jobs_json]
+
+
+@mcp.tool
+def get_detailed_job_info_from_sacct(
+    cluster: str | None, job_ids: Sequence[int | str]
+) -> list[SlurmJob]:
+    """Retrieve detailed information about the given jobs on a SLURM cluster using the `sacct`
+    command.
 
     This does not include the GPU utilization metrics from Prometheus.
 
