@@ -1,6 +1,6 @@
 [project]
 name = "slurm-mcp"
-description = "Add your description here"
+description = "Simple MCP server to interact with SLURM clusters in natural language through LLM agents."
 readme = "README.md"
 requires-python = ">=3.13"
 dynamic = ["version"]
@@ -11,6 +11,14 @@ dependencies = [
     "pydantic>=2.11.9",
     "rich>=14.1.0",
     "sarc",
+]
+classifiers = [
+    "Programming Language :: Python :: 3.13",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
 ]
 
 [project.scripts]
