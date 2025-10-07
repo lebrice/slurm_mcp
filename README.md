@@ -18,8 +18,8 @@ Simple MCP server to interact with SLURM clusters in natural language.
 
 - This can only fetch your own SLURM job information, not of other users.
 - This can't be used to launch jobs. It is not a good idea to let an LLM submit compute jobs for you.
-- The GPU utilization metrics are only available for the Mila cluster. For other clusters, you will need to provide the prometheus URL to use in order to fetch job compute stats.
-   - Some jobs are missing GPU compute stats because of a bug in the DCGMI / slurm job exporter / nvidia driver / something, that causes the gpu util to be a very very very large number. This tool filters those and displays them as having no usable compute metrics.
+- To get compute metrics, you need to set the `PROMETHEUS_URL_<CLUSTER>` environment variable to the Prometheus URL of your cluster. See step 3 below.
+   - On the Mila cluster, some jobs are missing GPU compute stats because of a bug in the DCGMI / slurm job exporter / nvidia driver / something, that causes the gpu util to be a very very very large number. This tool filters those and displays them as having no usable compute metrics.
 
 
 
