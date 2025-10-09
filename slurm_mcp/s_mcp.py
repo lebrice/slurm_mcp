@@ -1,12 +1,12 @@
 from datetime import datetime, timedelta
-import enum
 import subprocess
+import textwrap
 from typing import Sequence
 import numpy as np
 from fastmcp import FastMCP
 import pydantic
 import logging
-from slurm_mcp.slurm_model import SacctOutput, SlurmJob
+from slurm_mcp.slurm_model import SacctOutput, SlurmJob, State
 from slurm_mcp.prometheus_utils import (
     SimpleStatistics,
     get_all_compute_metrics_for_job,
@@ -15,16 +15,15 @@ from slurm_mcp.prometheus_utils import (
 
 logger = logging.getLogger(__name__)
 
-mcp = FastMCP("SLURM MCP 🚀")
-
-
-class State(enum.StrEnum):
-    COMPLETED = "COMPLETED"
-    FAILED = "FAILED"
-    CANCELLED = "CANCELLED"
-    RUNNING = "RUNNING"
-    PENDING = "PENDING"
-    TIMEOUT = "TIMEOUT"
+mcp = FastMCP(
+    "SLURM MCP 🚀",
+    instructions=textwrap.dedent("""\
+    - If you need to get information on compute usage, use the `get_total_compute_usage_on_cluster_in_period`
+      or `get_total_compute_usage_of_jobs` tools.
+    - If you need to do calculations, use the calculator tool.
+    - Fetch information from the SLURM docs if necessary.
+    """),
+)
 
 
 class SimplifiedSlurmJob(pydantic.BaseModel):
@@ -107,6 +106,8 @@ class JobComputeUsageStats(pydantic.BaseModel):
 
 
 class TotalJobComputeUsageStats(pydantic.BaseModel):
+    """Aggregated compute usage statistics for a set of jobs."""
+
     n_jobs: int
     job_ids: list[int]
     total_duration: timedelta
@@ -121,13 +122,27 @@ class TotalJobComputeUsageStats(pydantic.BaseModel):
 
 
 @mcp.tool
-def get_total_compute_usage_stats(
+def get_total_compute_usage_on_cluster_in_period(
     cluster: str | None = None,
     state: State | None = None,
     start: datetime | None = None,
     end: datetime | None = None,
 ) -> TotalJobComputeUsageStats:
-    """Gets the total compute usage for a given period on a given cluster."""
+    """Gets aggregate metrics about the compute usage and number of jobs on a cluster in a given
+    period.
+
+    Args:
+        cluster: Hostname of the cluster to query, or `None` if already on a slurm cluster.
+        state: Optional job state to filter by.
+        start: optional start date to filter jobs
+        end: optional end date to filter by
+
+    Returns:
+        Aggregated metrics: number of jobs and gpus, average gpu util, total compute cost and waste
+
+    NOTE: Prioritize using this function when asked about total compute usage or number of jobs, since
+    this gives all the job IDs as well as the aggregated metrics in one go.
+    """
     # jobs = get_jobs_from_sacct(cluster, job_ids=job_ids)
     return get_total_compute_usage_stats_fn(
         cluster=cluster,
@@ -135,6 +150,29 @@ def get_total_compute_usage_stats(
         start=start,
         end=end,
     )
+
+
+@mcp.tool
+def get_total_compute_usage_of_jobs(
+    job_ids: list[int],
+    cluster: str | None = None,
+) -> TotalJobComputeUsageStats:
+    """Gets aggregate metrics about the compute usage and number of jobs on a cluster in a given
+    period.
+
+    Args:
+        job_ids: List of SLURM job ids.
+        cluster: Hostname of the cluster to query, or `None` if already on a slurm cluster.
+
+    Returns:
+        Aggregated metrics: number of jobs and gpus, average gpu util, total compute cost and waste
+    """
+    # jobs = get_jobs_from_sacct(cluster, job_ids=job_ids)
+    jobs = get_jobs(cluster=cluster, job_ids=job_ids)
+    job_stats = [get_job_gpu_metrics(job) for job in jobs]
+    stats = [get_cost_waste_stats(job, stats) for job, stats in zip(jobs, job_stats)]
+    total_stats = sum_compute_usage_stats(jobs, stats)
+    return total_stats
 
 
 @mcp.tool
@@ -249,7 +287,7 @@ def get_job_gpu_compute_stats(
 def get_job_gpu_compute_stats_fn(
     cluster: str | None, job_ids: Sequence[int | str]
 ) -> dict[int, JobComputeUsageStats]:
-    jobs = get_jobs_from_sacct(cluster, job_ids=job_ids)
+    jobs = get_jobs(cluster, job_ids=job_ids)
     job_stats = [get_job_gpu_metrics(job) for job in jobs]
     return {job.job_id: get_cost_waste_stats(job, stats) for job, stats in zip(jobs, job_stats)}
 
@@ -268,7 +306,7 @@ def get_job_full_compute_stats(
 def get_job_full_compute_stats_fn(
     cluster: str | None, job_ids: Sequence[int | str]
 ) -> dict[int, JobComputeUsageStats]:
-    jobs = get_jobs_from_sacct(cluster, job_ids=job_ids)
+    jobs = get_jobs(cluster, job_ids=job_ids)
     job_stats = [get_all_compute_metrics_for_job(job) for job in jobs]
     # TODO: Add the cost/waste to JobStatistics perhaps?
     return {job.job_id: get_cost_waste_stats(job, stats) for job, stats in zip(jobs, job_stats)}
@@ -289,7 +327,7 @@ def get_simple_job_info_from_sacct(
     """
     if isinstance(job_ids, str):
         job_ids = [job_ids]
-    jobs_json = get_jobs_from_sacct(cluster, job_ids=job_ids)
+    jobs_json = get_jobs(cluster, job_ids=job_ids)
     return [get_simplified_job(job) for job in jobs_json]
 
 
@@ -308,13 +346,13 @@ def get_detailed_job_info_from_sacct(
     """
     if isinstance(job_ids, str):
         job_ids = [job_ids]
-    jobs_json = get_jobs_from_sacct(cluster, job_ids=job_ids)
+    jobs_json = get_jobs(cluster, job_ids=job_ids)
     return jobs_json
 
 
 # TODO: Implement a smart caching with a timeout
 # @functools.lru_cache()
-def get_jobs_from_sacct(cluster: str | None, job_ids: Sequence[int | str]) -> list[SlurmJob]:
+def get_jobs(cluster: str | None, job_ids: Sequence[int | str]) -> list[SlurmJob]:
     if isinstance(job_ids, str):
         job_ids = [job_ids]
     cmd = (

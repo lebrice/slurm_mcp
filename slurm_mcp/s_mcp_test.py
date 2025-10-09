@@ -3,14 +3,14 @@ from datetime import datetime, timedelta
 
 from slurm_mcp.s_mcp import (
     get_job_gpu_compute_stats_fn,
-    get_jobs_from_sacct,
+    get_jobs,
     get_total_compute_usage_stats_fn,
 )
 from slurm_mcp.slurm_model import SlurmJob
 
 
 def test_job_info_from_sacct():
-    jobs = get_jobs_from_sacct(
+    jobs = get_jobs(
         cluster="mila",
         job_ids=[
             7650400,

@@ -6,14 +6,14 @@ calculator = FastMCP("Calculator 🧮")
 
 
 @calculator.tool
-def add(a: int | float, b: int | float) -> int | float:
-    """Add two numbers."""
+def add(a, b):
+    """Add two quantities - numbers, timedeltas, etc."""
     return a + b
 
 
 @calculator.tool
-def multiply(a: int | float, b: int | float) -> int | float:
-    """Multiply some numbers."""
+def multiply(a, b):
+    """Multiply two quantities."""
     return a * b
 
 

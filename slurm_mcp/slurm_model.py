@@ -1,4 +1,6 @@
 from datetime import datetime, timedelta
+import enum
+from pathlib import PurePosixPath
 from pydantic import BaseModel
 from typing import List, Dict, Any
 
@@ -129,8 +131,17 @@ class ExitCode(BaseModel):
     signal: ExitCodeSignal
 
 
-class State(BaseModel):
-    current: List[str]
+class State(enum.StrEnum):
+    COMPLETED = "COMPLETED"
+    FAILED = "FAILED"
+    CANCELLED = "CANCELLED"
+    RUNNING = "RUNNING"
+    PENDING = "PENDING"
+    TIMEOUT = "TIMEOUT"
+
+
+class StateAndReason(BaseModel):
+    current: List[State]
     reason: str
 
 
@@ -363,8 +374,13 @@ class SlurmJob(BaseModel):
     stdout: str
     stderr: str
     stdin: str
-    state: State
+    state: StateAndReason
     steps: List[JobStep]
+    working_directory: PurePosixPath
+
+    @property
+    def current_state(self) -> State:
+        return self.state.current[0]
 
     # Add other fields as needed
     @property
